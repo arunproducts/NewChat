@@ -27,6 +27,7 @@ export default function Home() {
     stopListening,
     resetTranscript,
     error: voiceError,
+    isWaitingForWakeWord,
   } = useVoiceInput();
 
   const {
