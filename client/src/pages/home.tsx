@@ -3,21 +3,21 @@ import { DottedAvatar } from "@/components/dotted-avatar";
 import { VoiceButton } from "@/components/voice-button";
 import { ConversationArea } from "@/components/conversation-area";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ConsultantProfile } from "@/components/consultant-profile";
-import { Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ModelSelector } from "@/components/model-selector";
 import { useVoiceInput } from "@/hooks/use-voice-input";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { useAudioPlayback } from "@/hooks/use-audio-playback";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { getSelectedModelId, saveSelectedModelId } from "@shared/models";
 import type { Message, ConversationState, ChatResponse, TranscribeResponse } from "@shared/schema";
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationState, setConversationState] = useState<ConversationState>("idle");
   const [useFallbackRecording, setUseFallbackRecording] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState<string>("mock");
   const { toast } = useToast();
 
   const {
@@ -38,12 +38,47 @@ export default function Home() {
 
   const { isPlaying, audioAmplitude, playAudio, stopAudio } = useAudioPlayback();
 
+  // Browser TTS (Web Speech API - SpeechSynthesis)
+  const playBrowserTTS = async (text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      const synth = window.speechSynthesis;
+      
+      // Cancel any ongoing speech
+      synth.cancel();
+      
+      // Create utterance
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      
+      setConversationState("speaking");
+      
+      utterance.onend = () => {
+        setConversationState("idle");
+        resolve();
+      };
+      
+      utterance.onerror = () => {
+        console.error("TTS error");
+        setConversationState("idle");
+        resolve();
+      };
+      
+      synth.speak(utterance);
+    });
+  };
+
   // Check if Web Speech API is available, otherwise use fallback
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setUseFallbackRecording(true);
     }
+    
+    // Load selected model from localStorage
+    const saved = getSelectedModelId();
+    setSelectedModelId(saved);
   }, []);
 
   // Transcribe mutation for fallback recording
@@ -106,6 +141,7 @@ export default function Home() {
         {
           message,
           conversationHistory: messages.slice(-5),
+          modelId: selectedModelId,
         }
       );
       return response.json() as Promise<ChatResponse>;
@@ -121,15 +157,20 @@ export default function Home() {
       setMessages((prev) => [...prev, assistantMessage]);
 
       if (data.audioUrl) {
+        // Use server-provided audio
         setConversationState("speaking");
         try {
           await playAudio(data.audioUrl);
         } catch (error) {
           console.error("Audio playback error:", error);
+          // Fallback to browser TTS if audio fails
+          await playBrowserTTS(data.message);
         } finally {
           setConversationState("idle");
         }
       } else {
+        // Use browser Web Speech API for TTS
+        await playBrowserTTS(data.message);
         setConversationState("idle");
       }
     },
@@ -216,41 +257,26 @@ export default function Home() {
     }
   };
 
-  const handleClearConversation = () => {
-    setMessages([]);
-    stopAudio();
-    setConversationState("idle");
-    toast({
-      title: "Conversation cleared",
-      description: "All messages have been removed",
-    });
-  };
-
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 md:px-8 h-16 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-chart-1 bg-clip-text text-transparent">
-          xelochat
-        </h1>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleClearConversation}
-            disabled={messages.length === 0}
-            className="hover-elevate active-elevate-2"
-            data-testid="button-clear-conversation"
-          >
-            <Settings className="h-5 w-5" />
-            <span className="sr-only">Clear conversation</span>
-          </Button>
+      <header className="flex flex-col gap-2 px-6 md:px-8 py-4 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-chart-1 bg-clip-text text-transparent">
+            xelochat
+          </h1>
           <ThemeToggle />
         </div>
+        <div className="flex items-center gap-2">
+          <ModelSelector
+            selectedModelId={selectedModelId}
+            onModelChange={(modelId) => {
+              setSelectedModelId(modelId);
+              saveSelectedModelId(modelId);
+            }}
+          />
+        </div>
       </header>
-
-      {/* Consultant Profile Section */}
-      <ConsultantProfile />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">

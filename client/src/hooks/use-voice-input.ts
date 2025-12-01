@@ -14,9 +14,11 @@ export function useVoiceInput(): UseVoiceInputReturn {
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
+  const accumulatedTranscriptRef = useRef<string>("");
 
   const startListening = useCallback(() => {
     setError(null);
+    accumulatedTranscriptRef.current = "";
     
     // Check if browser supports Web Speech API
     const SpeechRecognition =
@@ -36,22 +38,28 @@ export function useVoiceInput(): UseVoiceInputReturn {
     recognition.onstart = () => {
       setIsListening(true);
       setTranscript("");
+      accumulatedTranscriptRef.current = "";
     };
 
     recognition.onresult = (event: any) => {
-      let finalTranscript = "";
       let interimTranscript = "";
 
+      // Process all results from resultIndex to end
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
+        
         if (event.results[i].isFinal) {
-          finalTranscript += transcript + " ";
+          // Accumulate final results
+          accumulatedTranscriptRef.current += transcript + " ";
         } else {
+          // Show interim results
           interimTranscript += transcript;
         }
       }
 
-      setTranscript((prev) => prev + finalTranscript || interimTranscript);
+      // Update display: accumulated final + interim
+      const displayText = accumulatedTranscriptRef.current + interimTranscript;
+      setTranscript(displayText.trim());
     };
 
     recognition.onerror = (event: any) => {
@@ -62,6 +70,8 @@ export function useVoiceInput(): UseVoiceInputReturn {
 
     recognition.onend = () => {
       setIsListening(false);
+      // Keep the accumulated transcript for submission
+      setTranscript(accumulatedTranscriptRef.current.trim());
     };
 
     recognitionRef.current = recognition;
@@ -74,10 +84,12 @@ export function useVoiceInput(): UseVoiceInputReturn {
       recognitionRef.current = null;
     }
     setIsListening(false);
+    // Final transcript is already set in onend handler
   }, []);
 
   const resetTranscript = useCallback(() => {
     setTranscript("");
+    accumulatedTranscriptRef.current = "";
   }, []);
 
   return {

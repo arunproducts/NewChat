@@ -7,7 +7,9 @@ import fs from "fs";
 import { z } from "zod";
 import { chatRequestSchema, chatResponseSchema, transcribeRequestSchema, transcribeResponseSchema } from "@shared/schema";
 import { generateChatResponse, textToSpeech, transcribeAudio } from "./huggingface";
-import { consultantProfile } from "./consultant-kb";
+import { consultantProfile, searchKnowledgeBase, getConsultantSystemPrompt } from "./consultant-kb";
+import { availableModels, getModelById } from "@shared/models";
+import { generateResponseWithModel, isOllamaAvailable } from "./model-service";
 
 // Configure multer for audio file uploads
 const upload = multer({
@@ -48,18 +50,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(consultantProfile);
   });
 
+  // Get available models
+  app.get("/api/models", (req, res) => {
+    res.json(availableModels);
+  });
+
+  // Get model details
+  app.get("/api/models/:id", (req, res) => {
+    const model = getModelById(req.params.id);
+    if (!model) {
+      return res.status(404).json({ error: "Model not found" });
+    }
+    res.json(model);
+  });
+
+  // Check Ollama availability
+  app.get("/api/models/ollama/status", async (req, res) => {
+    const available = await isOllamaAvailable();
+    res.json({ available });
+  });
+
   // Chat endpoint - text input, get text + audio response
   app.post("/api/chat", async (req, res) => {
     try {
       const body = chatRequestSchema.parse(req.body);
+      const selectedModelId = body.modelId || "mock"; // Get model from request, default to mock
 
-      // Generate AI response
+      // Generate AI response using selected model
       const conversationHistory = (body.conversationHistory || []).map(msg => ({
         role: msg.role,
         content: msg.content,
       }));
 
-      const responseText = await generateChatResponse(body.message, conversationHistory);
+      // Search knowledge base for context
+      const relevantKnowledge = searchKnowledgeBase(body.message, 3);
+      const systemPrompt = getConsultantSystemPrompt(relevantKnowledge);
+
+      let responseText: string;
+
+      // Use model-based generation or fallback to legacy
+      if (selectedModelId && selectedModelId !== "default") {
+        responseText = await generateResponseWithModel(
+          body.message,
+          selectedModelId,
+          systemPrompt,
+          conversationHistory
+        );
+      } else {
+        // Fallback to legacy generateChatResponse
+        responseText = await generateChatResponse(body.message, conversationHistory);
+      }
+
 
       // Try to convert to speech (may not be available on free tier)
       const audioPath = await textToSpeech(responseText);

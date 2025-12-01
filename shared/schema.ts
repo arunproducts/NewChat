@@ -25,6 +25,7 @@ export type ConversationState = z.infer<typeof conversationStateSchema>;
 export const chatRequestSchema = z.object({
   message: z.string(),
   conversationHistory: z.array(messageSchema).optional(),
+  modelId: z.string().optional(), // Model selection
 });
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

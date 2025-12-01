@@ -3,8 +3,10 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import { searchKnowledgeBase, getConsultantSystemPrompt } from "./consultant-kb";
+import { getMockResponse } from "./mock-responses";
 
 const hf = new HfInference(process.env.HF_TOKEN);
+const USE_MOCK_MODE = !process.env.HF_TOKEN; // Use mock responses if no token provided
 
 // Free Hugging Face models
 const CHAT_MODEL = "meta-llama/Llama-3.1-8B-Instruct";
@@ -19,12 +21,19 @@ interface ChatMessage {
 /**
  * Generate AI chat response using Llama-3.1-8B-Instruct
  * Integrates consultant knowledge base for context-aware responses
+ * Falls back to mock responses if HF_TOKEN is not set
  */
 export async function generateChatResponse(
   userMessage: string,
   conversationHistory: ChatMessage[] = []
 ): Promise<string> {
   try {
+    // Use mock mode if no HF token is provided
+    if (USE_MOCK_MODE) {
+      console.log(`[MOCK MODE] Using sample response for: "${userMessage}"`);
+      return getMockResponse(userMessage);
+    }
+
     // Search knowledge base for relevant context
     const relevantKnowledge = searchKnowledgeBase(userMessage, 3);
     
@@ -56,6 +65,11 @@ export async function generateChatResponse(
     return generatedText || "I'm sorry, I couldn't generate a response.";
   } catch (error) {
     console.error("Error generating chat response:", error);
+    // Fallback to mock response if API fails
+    if (!USE_MOCK_MODE) {
+      console.log("API failed, falling back to mock response");
+      return getMockResponse(userMessage);
+    }
     throw new Error("Failed to generate AI response");
   }
 }
