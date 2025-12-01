@@ -7,6 +7,7 @@ import fs from "fs";
 import { z } from "zod";
 import { chatRequestSchema, chatResponseSchema, transcribeRequestSchema, transcribeResponseSchema } from "@shared/schema";
 import { generateChatResponse, textToSpeech, transcribeAudio } from "./huggingface";
+import { consultantProfile } from "./consultant-kb";
 
 // Configure multer for audio file uploads
 const upload = multer({
@@ -40,6 +41,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Get consultant profile
+  app.get("/api/consultant/profile", (req, res) => {
+    res.json(consultantProfile);
   });
 
   // Chat endpoint - text input, get text + audio response

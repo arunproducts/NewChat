@@ -3,6 +3,7 @@ import { DottedAvatar } from "@/components/dotted-avatar";
 import { VoiceButton } from "@/components/voice-button";
 import { ConversationArea } from "@/components/conversation-area";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ConsultantProfile } from "@/components/consultant-profile";
 import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useVoiceInput } from "@/hooks/use-voice-input";
@@ -99,7 +100,7 @@ export default function Home() {
   // Chat mutation
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
-      const response = await apiRequest<ChatResponse>(
+      const response = await apiRequest(
         "POST",
         "/api/chat",
         {
@@ -107,7 +108,7 @@ export default function Home() {
           conversationHistory: messages.slice(-5),
         }
       );
-      return response;
+      return response.json() as Promise<ChatResponse>;
     },
     onSuccess: async (data) => {
       const assistantMessage: Message = {
@@ -247,6 +248,9 @@ export default function Home() {
           <ThemeToggle />
         </div>
       </header>
+
+      {/* Consultant Profile Section */}
+      <ConsultantProfile />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">

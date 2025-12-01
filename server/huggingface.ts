@@ -2,6 +2,7 @@ import { HfInference } from "@huggingface/inference";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import { searchKnowledgeBase, getConsultantSystemPrompt } from "./consultant-kb";
 
 const hf = new HfInference(process.env.HF_TOKEN);
 
@@ -17,17 +18,24 @@ interface ChatMessage {
 
 /**
  * Generate AI chat response using Llama-3.1-8B-Instruct
+ * Integrates consultant knowledge base for context-aware responses
  */
 export async function generateChatResponse(
   userMessage: string,
   conversationHistory: ChatMessage[] = []
 ): Promise<string> {
   try {
+    // Search knowledge base for relevant context
+    const relevantKnowledge = searchKnowledgeBase(userMessage, 3);
+    
+    // Get consultant system prompt with injected context
+    const systemPrompt = getConsultantSystemPrompt(relevantKnowledge);
+
     // Build messages array for chat completion
     const messages: Array<{ role: string; content: string }> = [
       {
         role: "system",
-        content: "You are a helpful, friendly AI assistant engaged in a natural voice conversation. Keep your responses conversational, concise (2-3 sentences), and engaging. Speak naturally as if you're having a real conversation.",
+        content: systemPrompt,
       },
       ...conversationHistory.slice(-4),
       {
