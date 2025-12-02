@@ -111,18 +111,18 @@ Avatar Animation + Voice Playback
 
 ### Installation
 
-```bash
-# Install dependencies
-npm install
-
-# Configure environment
-cp .env.example .env
-# Add your HF_TOKEN to .env
-
-# Start development server
-npm run dev
 ```
-
+{
+  "name": "xelo",
+  "title": "Senior Technology & Business Consultant",
+  "bio": "...",
+  "expertise": ["Digital Transformation", "AI & Machine Learning", ...],
+  "services": ["Strategy Consulting", "Technical Audit", ...],
+  "yearsOfExperience": 10,
+  "languages": ["English", "Hindi"],
+  "availability": "..."
+}
+```
 The application will be available at `http://localhost:5174` (or your specified PORT)
 
 ## Environment Variables
@@ -295,7 +295,7 @@ Retrieve the consultant's profile information.
 **Response:**
 ```json
 {
-  "name": "Arun Pattnaik",
+  "name": "xelo",
   "title": "Senior Technology & Business Consultant",
   "bio": "...",
   "expertise": ["Digital Transformation", "AI & Machine Learning", ...],

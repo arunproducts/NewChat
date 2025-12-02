@@ -25,7 +25,8 @@ export interface KnowledgeEntry {
 
 // Consultant Profile
 export const consultantProfile: ConsultantProfile = {
-  name: "Arun Pattnaik",
+  // The consultant profile is the assistant persona. Use the bot name here.
+  name: "xelo",
   title: "Senior Technology & Business Consultant",
   bio: "Experienced consultant specializing in digital transformation, AI/ML implementation, and business strategy. 10+ years helping companies scale and innovate.",
   expertise: [

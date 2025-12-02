@@ -117,6 +117,14 @@ export function useVoiceInput(): UseVoiceInputReturn {
         const displayText = accumulatedTranscriptRef.current + interimTranscript;
         setTranscript(displayText.trim() || "Listening...");
       }
+
+      // Debug: log interim transcripts and final accumulated transcript
+      if (interimTranscript) {
+        console.debug("[voice] Interim transcript:", interimTranscript);
+      }
+      if (accumulatedTranscriptRef.current && !isWaiting) {
+        console.debug("[voice] Final accumulated transcript:", accumulatedTranscriptRef.current.trim());
+      }
     };
 
     recognition.onerror = (event: any) => {
@@ -131,6 +139,9 @@ export function useVoiceInput(): UseVoiceInputReturn {
       setIsWaitingForWakeWord(false);
       // Keep the accumulated transcript for submission
       setTranscript(accumulatedTranscriptRef.current.trim());
+      if (accumulatedTranscriptRef.current) {
+        console.debug("[voice] Recognition ended, final transcript:", accumulatedTranscriptRef.current.trim());
+      }
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current);
         silenceTimeoutRef.current = null;

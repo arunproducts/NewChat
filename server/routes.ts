@@ -8,6 +8,7 @@ import { z } from "zod";
 import { chatRequestSchema, chatResponseSchema, transcribeRequestSchema, transcribeResponseSchema } from "@shared/schema";
 import { generateChatResponse, textToSpeech, transcribeAudio } from "./huggingface";
 import { consultantProfile, searchKnowledgeBase, getConsultantSystemPrompt } from "./consultant-kb";
+import { listConnectors, getConnectorById, connectConnector, disconnectConnector, getConnectorTabs } from "./connectors";
 import { availableModels, getModelById } from "@shared/models";
 import { generateResponseWithModel, isOllamaAvailable } from "./model-service";
 
@@ -172,6 +173,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     });
   }, 30 * 60 * 1000); // Run every 30 minutes
+
+  // Connectors endpoints (mock implementation)
+  app.get("/api/connectors", (req, res) => {
+    res.json(listConnectors());
+  });
+
+  app.post('/api/connectors/:id/connect', (req, res) => {
+    const id = req.params.id;
+    const result = connectConnector(id);
+    if (!result) return res.status(404).json({ error: 'Connector not found' });
+    res.json(result);
+  });
+
+  app.post('/api/connectors/:id/disconnect', (req, res) => {
+    const id = req.params.id;
+    const result = disconnectConnector(id);
+    if (!result) return res.status(404).json({ error: 'Connector not found' });
+    res.json(result);
+  });
+
+  app.get('/api/connectors/:id/tabs', (req, res) => {
+    const id = req.params.id;
+    const tabs = getConnectorTabs(id);
+    if (!tabs) return res.status(404).json({ error: 'Connector not found' });
+    if ((tabs as any).error === 'not_connected') return res.status(400).json({ error: 'Connector not connected' });
+    res.json(tabs);
+  });
 
   const httpServer = createServer(app);
 

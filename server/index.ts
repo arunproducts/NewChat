@@ -1,4 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { execSync } from "child_process";
+import net from "net";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import "dotenv/config";
@@ -64,6 +66,60 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || '5174', 10);
   const useMockMode = !process.env.HF_TOKEN;
   
+  // Check that the port is free before trying to listen. If it's busy, provide
+  // the user with actionable instructions. We use a quick TCP probe using net.
+  const isPortFree = (checkPort: number) => {
+    return new Promise<boolean>((resolve) => {
+      const tester = net.createServer()
+        .once("error", () => resolve(false))
+        .once("listening", () => {
+          tester.close();
+          resolve(true);
+        })
+        .listen(checkPort);
+    });
+  };
+
+  // Attach an error handler before listening so we catch EADDRINUSE and other
+  // errors that may occur during bind.
+  server.on("error", (err) => {
+    console.error("Server error:", err);
+
+  if ((err as any)?.code === "EADDRINUSE") {
+      console.error(
+        `Port ${port} is already in use. Use 'lsof -iTCP:${port} -sTCP:LISTEN -n -P' to find the process using the port, then kill it.`,
+      );
+
+      try {
+        const out = execSync(`lsof -iTCP:${port} -sTCP:LISTEN -n -P || true`, {
+          encoding: "utf-8",
+        });
+        if (out) {
+          console.error("Current listeners on port:", out);
+        }
+      } catch (ex) {
+        // Non-fatal if lsof fails
+      }
+    }
+  });
+
+  // Pre-check port: if it's in-use we'll halt here and show helpful details.
+  const portFree = await isPortFree(port);
+  if (!portFree) {
+    console.error(`Port ${port} appears to be in use. Aborting listen.`);
+    try {
+      const out = execSync(`lsof -iTCP:${port} -sTCP:LISTEN -n -P || true`, {
+        encoding: "utf-8",
+      });
+      if (out) {
+        console.error("Current listeners on port:", out);
+      }
+    } catch (ex) {
+      // ignore
+    }
+    process.exit(1);
+  }
+
   server.listen({
     port,
     host: "0.0.0.0",
@@ -75,4 +131,14 @@ app.use((req, res, next) => {
       log("📝 To use real AI: Set HF_TOKEN environment variable and restart");
     }
   });
+
+  process.on("uncaughtException", (err) => {
+    console.error("Uncaught Exception:", err);
+  });
+
+  process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  });
+
+  // ...existing server.on("error") logic moved above
 })();

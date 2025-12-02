@@ -5,6 +5,8 @@ import { ConversationArea } from "@/components/conversation-area";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ModelSelector } from "@/components/model-selector";
 import { useVoiceInput } from "@/hooks/use-voice-input";
+import { HelpOverlay } from "@/components/help-overlay";
+import { ConnectorsSidebar } from "@/components/connectors-sidebar";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { useAudioPlayback } from "@/hooks/use-audio-playback";
 import { useMutation } from "@tanstack/react-query";
@@ -280,20 +282,21 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Avatar Section */}
-        <div className="flex-shrink-0 border-b border-border/40">
+  <div className="flex-1 flex overflow-hidden">
+        {/* Left column: Avatar + Conversation area (main) */}
+        <div className="flex-1 flex flex-col">
+          <div className="flex-shrink-0 border-b border-border/40">
           <DottedAvatar
             state={conversationState}
             audioAmplitude={audioAmplitude}
           />
         </div>
 
-        {/* Conversation Area */}
-        <ConversationArea messages={messages} />
+          {/* Conversation Area */}
+          <ConversationArea messages={messages} />
 
-        {/* Voice Controls */}
-        <div className="flex-shrink-0 p-6 md:p-8 border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          {/* Voice Controls */}
+          <div className="flex-shrink-0 p-6 md:p-8 border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="max-w-3xl mx-auto flex justify-center">
             <VoiceButton
               state={conversationState}
@@ -302,7 +305,20 @@ export default function Home() {
               disabled={chatMutation.isPending || transcribeMutation.isPending}
             />
           </div>
+
+          </div>
         </div>
+
+        {/* Right column: Connectors */}
+        <ConnectorsSidebar />
+      <HelpOverlay
+          isListening={isListening}
+          isWaitingForWakeWord={isWaitingForWakeWord}
+          transcript={transcript}
+          onStart={handleStartListening}
+          onStop={handleStopListening}
+          useFallbackRecording={useFallbackRecording}
+        />
       </div>
     </div>
   );

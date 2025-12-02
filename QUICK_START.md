@@ -9,7 +9,7 @@ Your application has been transformed into a **Consultant AI Agent** with voice-
 
 ### Step 1: Ensure Dependencies Are Installed
 ```bash
-cd /Users/arunpattnaik/Documents/Projects/NewChat
+cd ~/Projects/NewChat # or your local path to the repo
 npm install
 ```
 
@@ -102,7 +102,7 @@ curl http://localhost:5174/api/consultant/profile
 Returns:
 ```json
 {
-  "name": "Arun Pattnaik",
+  "name": "xelo",
   "title": "Senior Technology & Business Consultant",
   "expertise": [...],
   "services": [...],

@@ -32,8 +32,9 @@ export async function setupVite(app: Express, server: Server) {
     customLogger: {
       ...viteLogger,
       error: (msg, options) => {
+        // Don't force a process.exit on Vite logger error - log it for debugging instead.
+        // Exiting on non-fatal logger errors makes the dev server brittle during development.
         viteLogger.error(msg, options);
-        process.exit(1);
       },
     },
     server: serverOptions,

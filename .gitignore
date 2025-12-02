@@ -26,3 +26,8 @@ coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Runtime files and uploads
+server.log
+server.pid
+uploads/
