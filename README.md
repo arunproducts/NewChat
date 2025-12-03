@@ -81,7 +81,25 @@ A sophisticated AI voice conversation platform that functions as an intelligent 
 
 ### Data Flow
 
+
 ```
+
+Note: If you set a Mistral API key, the server will attempt to use Mistral models with IDs like `mistral-instruct-1`. If MISTRAL_API_KEY is not present, the server falls back to other providers or the mock model.
+
+Example: to test Mistral (after setting your MISTRAL_API_KEY in `.env`):
+
+```bash
+# Start the dev server with env loaded (macOS / zsh)
+export MISTRAL_API_KEY=your_mistral_api_key_here
+npm run dev
+
+# Test via curl (replace message and modelId as needed)
+curl -s -X POST http://localhost:5174/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Explain transfer learning","conversationHistory":[],"modelId":"mistral-instruct-1"}'
+```
+
+Security note: Never commit your keys to source control. Use `.env` or a secret manager for production.
 User Voice Input
     ↓
 Web Speech API / Whisper (Transcription)
@@ -136,6 +154,10 @@ SESSION_SECRET=your_secret_key
 
 # Optional: Port for the server (default: 5000)
 PORT=5000
+
+# Optional: Mistral.ai API key (if you want to use Mistral models)
+# Do NOT commit your key to source control. Set this in your local .env.
+MISTRAL_API_KEY=your_mistral_api_key_here
 ```
 
 ## Customizing the Consultant Profile

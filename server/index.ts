@@ -65,6 +65,7 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5174', 10);
   const useMockMode = !process.env.HF_TOKEN;
+  const hasMistralKey = !!process.env.MISTRAL_API_KEY;
   
   // Check that the port is free before trying to listen. If it's busy, provide
   // the user with actionable instructions. We use a quick TCP probe using net.
@@ -129,6 +130,9 @@ app.use((req, res, next) => {
     if (useMockMode) {
       log("🤖 MOCK MODE: Running with sample responses (no HF_TOKEN provided)");
       log("📝 To use real AI: Set HF_TOKEN environment variable and restart");
+    }
+    if (hasMistralKey) {
+      log("🔺 Mistral provider enabled (MISTRAL_API_KEY detected)");
     }
   });
 

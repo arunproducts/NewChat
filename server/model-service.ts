@@ -61,6 +61,20 @@ export async function generateResponseWithModel(
       }
     }
 
+    // Mistral.ai (direct) - if a dedicated Mistral API key is set (MISTRAL_API_KEY)
+    if (modelId.startsWith("mistral-")) {
+      if (!process.env.MISTRAL_API_KEY) {
+        console.warn("[Model] Mistral model requested but MISTRAL_API_KEY is not set. Falling back to mock.");
+        return getMockResponse(userMessage);
+      }
+      try {
+        return await generateViaMistral(userMessage, modelId, systemPrompt, conversationHistory);
+      } catch (error: any) {
+        console.warn(`[Model] Mistral failed: ${error.message}, falling back to mock`);
+        return getMockResponse(userMessage);
+      }
+    }
+
     // Fallback to mock
     console.warn(`[Model] Unknown model: ${modelId}, falling back to mock`);
     return getMockResponse(userMessage);
@@ -248,6 +262,66 @@ async function generateViaGemini(
 }
 
 /**
+ * Generate response via Mistral.ai (Direct API)
+ * If MISTRAL_API_KEY is not set, the function throws, and the caller can fallback to other providers
+ */
+async function generateViaMistral(
+  userMessage: string,
+  modelId: string,
+  systemPrompt: string,
+  conversationHistory: ChatMessage[] = [],
+): Promise<string> {
+  try {
+    const apiKey = process.env.MISTRAL_API_KEY;
+    if (!apiKey) throw new Error("MISTRAL_API_KEY not set");
+
+    const modelConfig = getModelById(modelId);
+    if (!modelConfig) throw new Error(`Model ${modelId} not found`);
+
+    // Use the modelName field from the config, fallback to the modelId
+    const mistralModelName = modelConfig.modelName || modelId;
+
+    const prompt = [
+      systemPrompt,
+      ...conversationHistory.slice(-4).map((m) => `${m.role}: ${m.content}`),
+      `user: ${userMessage}`,
+    ].join("\n\n");
+
+    // NOTE: Mistral's API shape may require adjustments depending on API version
+    const response = await fetch(`https://api.mistral.ai/v1/models/${mistralModelName}/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        input: prompt,
+        parameters: {
+          max_new_tokens: 200,
+          temperature: 0.7,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      const errMsg = errData.error?.message || `HTTP ${response.status}`;
+      throw new Error(errMsg);
+    }
+
+    const data = await response.json();
+
+    // Extract text from response. This may need updating to match the API format.
+    const text = data?.output?.[0]?.content?.[0]?.text || data?.output?.[0]?.text || data?.result || data?.text;
+    if (!text) throw new Error("No response from Mistral");
+    return String(text).trim();
+  } catch (error: any) {
+    console.error("[Mistral] Error:", error.message);
+    throw new Error(`Mistral API error: ${error.message}`);
+  }
+}
+
+/**
  * Check if Ollama is available
  */
 export async function isOllamaAvailable(): Promise<boolean> {
@@ -260,6 +334,18 @@ export async function isOllamaAvailable(): Promise<boolean> {
     });
     clearTimeout(timeoutId);
     return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if Mistral provider is enabled (MISTRAL_API_KEY set)
+ */
+export async function isMistralAvailable(): Promise<boolean> {
+  try {
+    // simple check: presence of API key enables Mistral usage
+    return !!process.env.MISTRAL_API_KEY;
   } catch {
     return false;
   }

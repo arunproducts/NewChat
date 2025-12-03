@@ -31,6 +31,19 @@ export function ModelSelector({ selectedModelId, onModelChange }: ModelSelectorP
     staleTime: 1000 * 30, // 30 seconds
   });
 
+  const { data: mistralAvailable } = useQuery({
+    queryKey: ["mistral-status"],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest("GET", "/api/models/mistral/status");
+        return response.json() as Promise<{ available: boolean }>;
+      } catch {
+        return { available: false };
+      }
+    },
+    staleTime: 1000 * 30, // 30 seconds
+  });
+
   const selectedModel = availableModels.find((m) => m.id === selectedModelId);
 
   return (
@@ -48,7 +61,7 @@ export function ModelSelector({ selectedModelId, onModelChange }: ModelSelectorP
           {availableModels
             .filter((m) => m.provider === "ollama")
             .map((model) => (
-              <SelectItem key={model.id} value={model.id}>
+              <SelectItem key={model.id} value={model.id} disabled={!ollamaAvailable?.available}>
                 {model.name}
                 {!ollamaAvailable?.available && " ⚠️"}
               </SelectItem>
@@ -80,6 +93,22 @@ export function ModelSelector({ selectedModelId, onModelChange }: ModelSelectorP
               </SelectItem>
             ))}
 
+          {/* Mistral Section */}
+          <div className="px-2 py-2 flex items-center gap-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase">Mistral (Cloud)</p>
+            {mistralAvailable?.available && (
+              <span className="text-xs text-emerald-500 font-medium">Available ✓</span>
+            )}
+          </div>
+          {availableModels
+            .filter((m) => m.provider === "mistral")
+            .map((model) => (
+              <SelectItem key={model.id} value={model.id} disabled={!mistralAvailable?.available}>
+                {model.name}
+                {!mistralAvailable?.available && " ⚠️"}
+              </SelectItem>
+            ))}
+
           {/* Mock Section */}
           <div className="px-2 py-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Test Mode</p>
@@ -93,6 +122,16 @@ export function ModelSelector({ selectedModelId, onModelChange }: ModelSelectorP
             ))}
         </SelectContent>
       </Select>
+      {/* Small note for Mistral */}
+      {!mistralAvailable?.available && (
+        <div className="ml-4">
+          <Alert>
+            <AlertDescription>
+              Mistral is disabled. Set <code>MISTRAL_API_KEY</code> in your environment to enable Mistral models.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
     </div>
   );
 }

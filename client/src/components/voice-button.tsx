@@ -30,7 +30,7 @@ export function VoiceButton({
     }
   };
 
-  const getButtonVariant = () => {
+  const getButtonVariant = (): "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined => {
     if (isListening) return "default";
     return "default";
   };

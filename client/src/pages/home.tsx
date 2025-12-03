@@ -9,7 +9,7 @@ import { HelpOverlay } from "@/components/help-overlay";
 import { ConnectorsSidebar } from "@/components/connectors-sidebar";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { useAudioPlayback } from "@/hooks/use-audio-playback";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getSelectedModelId, saveSelectedModelId } from "@shared/models";
@@ -21,6 +21,20 @@ export default function Home() {
   const [useFallbackRecording, setUseFallbackRecording] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string>("mock");
   const { toast } = useToast();
+
+  // Mistral availability for warnings / auto-revert if saved selection is a Mistral model but key is missing
+  const { data: mistralAvailable } = useQuery({
+    queryKey: ["mistral-status"],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest("GET", "/api/models/mistral/status");
+        return response.json() as Promise<{ available: boolean }>;
+      } catch {
+        return { available: false };
+      }
+    },
+    staleTime: 1000 * 30,
+  });
 
   const {
     isListening,
@@ -83,6 +97,19 @@ export default function Home() {
     const saved = getSelectedModelId();
     setSelectedModelId(saved);
   }, []);
+
+  // If the selected model is Mistral but Mistral becomes unavailable, revert to mock and notify the user
+  useEffect(() => {
+    if (selectedModelId && selectedModelId.startsWith("mistral-") && mistralAvailable?.available === false) {
+      setSelectedModelId("mock");
+      saveSelectedModelId("mock");
+      toast({
+        title: "Mistral disabled",
+        description: "Mistral API key is not set. Set MISTRAL_API_KEY in your .env to enable Mistral models",
+        variant: "destructive",
+      });
+    }
+  }, [mistralAvailable, selectedModelId, saveSelectedModelId, toast]);
 
   // Transcribe mutation for fallback recording
   const transcribeMutation = useMutation({

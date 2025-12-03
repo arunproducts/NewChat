@@ -10,7 +10,7 @@ import { generateChatResponse, textToSpeech, transcribeAudio } from "./huggingfa
 import { consultantProfile, searchKnowledgeBase, getConsultantSystemPrompt } from "./consultant-kb";
 import { listConnectors, getConnectorById, connectConnector, disconnectConnector, getConnectorTabs } from "./connectors";
 import { availableModels, getModelById } from "@shared/models";
-import { generateResponseWithModel, isOllamaAvailable } from "./model-service";
+import { generateResponseWithModel, isOllamaAvailable, isMistralAvailable } from "./model-service";
 
 // Configure multer for audio file uploads
 const upload = multer({
@@ -68,6 +68,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Check Ollama availability
   app.get("/api/models/ollama/status", async (req, res) => {
     const available = await isOllamaAvailable();
+    res.json({ available });
+  });
+
+  // Check Mistral availability (simple check for MISTRAL_API_KEY presence)
+  app.get("/api/models/mistral/status", async (req, res) => {
+    const available = await isMistralAvailable();
     res.json({ available });
   });
 

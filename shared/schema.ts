@@ -48,3 +48,14 @@ export const transcribeResponseSchema = z.object({
 });
 
 export type TranscribeResponse = z.infer<typeof transcribeResponseSchema>;
+
+// Minimal User types for storage and other helpers
+export const userSchema = z.object({
+  id: z.string(),
+  username: z.string(),
+});
+
+export const insertUserSchema = userSchema.omit({ id: true });
+
+export type User = z.infer<typeof userSchema>;
+export type InsertUser = z.infer<typeof insertUserSchema>;

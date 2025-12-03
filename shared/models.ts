@@ -6,7 +6,8 @@
 export interface LLMModel {
   id: string;
   name: string;
-  provider: "ollama" | "huggingface" | "lmstudio" | "gemini" | "local";
+  // add 'mistral' as a provider option
+  provider: "ollama" | "huggingface" | "lmstudio" | "gemini" | "local" | "mistral";
   description: string;
   modelName: string;
   endpoint?: string; // Optional custom endpoint
@@ -152,6 +153,20 @@ export const availableModels: LLMModel[] = [
     capabilities: {
       reasoning: 5,
       speed: 5,
+      quality: 4,
+    },
+  },
+  // Mistral.ai (Direct API) - optional
+  {
+    id: "mistral-instruct-1",
+    name: "Mistral Instruct - Mistral.ai",
+    provider: "mistral",
+    description: "Powerful instruction-following model from Mistral.ai (use MISTRAL_API_KEY)",
+    modelName: "mistral-instruct",
+    requiresSetup: false,
+    capabilities: {
+      reasoning: 4,
+      speed: 4,
       quality: 4,
     },
   },
