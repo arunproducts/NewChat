@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { DottedAvatar } from "@/components/dotted-avatar";
 import { VoiceButton } from "@/components/voice-button";
 import { ConversationArea } from "@/components/conversation-area";
@@ -9,18 +10,32 @@ import { HelpOverlay } from "@/components/help-overlay";
 import { ConnectorsSidebar } from "@/components/connectors-sidebar";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { useAudioPlayback } from "@/hooks/use-audio-playback";
+import { useAuth } from "@/context/AuthContext";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import { getSelectedModelId, saveSelectedModelId } from "@shared/models";
+import { LogOut } from "lucide-react";
 import type { Message, ConversationState, ChatResponse, TranscribeResponse } from "@shared/schema";
 
 export default function Home() {
+  const [, setLocation] = useLocation();
+  const { user, logout } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationState, setConversationState] = useState<ConversationState>("idle");
   const [useFallbackRecording, setUseFallbackRecording] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string>("mock");
   const { toast } = useToast();
+
+  const handleLogout = async () => {
+    await logout();
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
+    setLocation("/login");
+  };
 
   // Mistral availability for warnings / auto-revert if saved selection is a Mistral model but key is missing
   const { data: mistralAvailable } = useQuery({
@@ -58,30 +73,51 @@ export default function Home() {
   // Browser TTS (Web Speech API - SpeechSynthesis)
   const playBrowserTTS = async (text: string): Promise<void> => {
     return new Promise((resolve) => {
+      // Check if browser supports speech synthesis
       const synth = window.speechSynthesis;
-      
+      if (!synth) {
+        console.warn("Browser does not support Web Speech API");
+        resolve();
+        return;
+      }
+
       // Cancel any ongoing speech
       synth.cancel();
-      
+
       // Create utterance
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-      
-      setConversationState("speaking");
-      
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      utterance.lang = "en-US";
+
+      utterance.onstart = () => {
+        console.log("Speech started");
+        setConversationState("speaking");
+      };
+
       utterance.onend = () => {
+        console.log("Speech ended");
         setConversationState("idle");
         resolve();
       };
-      
-      utterance.onerror = () => {
-        console.error("TTS error");
+
+      utterance.onerror = (event) => {
+        console.error("TTS error:", event.error);
         setConversationState("idle");
         resolve();
       };
-      
+
+      utterance.onpause = () => {
+        console.log("Speech paused");
+      };
+
+      utterance.onresume = () => {
+        console.log("Speech resumed");
+      };
+
+      // Actually speak the text
+      console.log("Speaking:", text.substring(0, 50) + "...");
       synth.speak(utterance);
     });
   };
@@ -186,21 +222,13 @@ export default function Home() {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      if (data.audioUrl) {
-        // Use server-provided audio
+      // Always use browser TTS (Web Speech API) for reliable cross-platform audio
+      try {
         setConversationState("speaking");
-        try {
-          await playAudio(data.audioUrl);
-        } catch (error) {
-          console.error("Audio playback error:", error);
-          // Fallback to browser TTS if audio fails
-          await playBrowserTTS(data.message);
-        } finally {
-          setConversationState("idle");
-        }
-      } else {
-        // Use browser Web Speech API for TTS
         await playBrowserTTS(data.message);
+      } catch (error) {
+        console.error("TTS error:", error);
+      } finally {
         setConversationState("idle");
       }
     },
@@ -290,12 +318,27 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="flex flex-col gap-2 px-6 md:px-8 py-4 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="flex flex-col gap-3 px-6 md:px-8 py-4 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-chart-1 bg-clip-text text-transparent">
             xelochat
           </h1>
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            <div className="text-sm">
+              <p className="font-medium">Welcome, {user?.username}</p>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleLogout}
+              className="gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+            <ThemeToggle />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <ModelSelector

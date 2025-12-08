@@ -273,7 +273,7 @@ export function searchKnowledgeBase(query: string, limit: number = 3): Knowledge
  * Get context-enhanced system prompt for the consultant AI
  * Includes consultant info and optionally searched knowledge
  */
-export function getConsultantSystemPrompt(relevantKnowledge?: KnowledgeEntry[]): string {
+export function getConsultantSystemPrompt(relevantKnowledge?: KnowledgeEntry[], tabContext?: string): string {
   let prompt = `You are ${consultantProfile.name}, a ${consultantProfile.title}.
 
 About me:
@@ -294,6 +294,11 @@ Conversation guidelines:
 - Keep responses concise (2-3 sentences) for voice conversation
 - If asked about services or expertise, reference your background
 - Be honest about limitations and suggest further support when needed`;
+
+  // Add tab context if available (from Chrome connector)
+  if (tabContext) {
+    prompt += `\n\nUser's browser context:\n${tabContext}\n\nYou can reference the user's open tabs and offer to help them navigate or work with specific pages. When the user asks you to switch tabs or interact with their browser, you can do so.`;
+  }
 
   if (relevantKnowledge && relevantKnowledge.length > 0) {
     prompt += `\n\nRelevant context from your knowledge base:\n`;
